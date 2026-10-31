@@ -5,12 +5,20 @@ on:
   push:
     branches: [ main ]
 
+# دادن دسترسی نوشتن به اکشن برای پوش کردن فایل‌ها
+permissions:
+  contents: write
+
 jobs:
   download:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. دانلود Iran-Bomber (نسخه Go) از فورک فعال
+      # 1. دریافت مخزن فعلی (برای اینکه گیت بداند کجا باید پوش کند)
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      # 2. دانلود Iran-Bomber (نسخه Go) در پوشه iran-bomber
       - name: Checkout Iran-Bomber (Fork)
         uses: actions/checkout@v4
         with:
@@ -18,7 +26,7 @@ jobs:
           path: iran-bomber
           ref: main
 
-      # 2. دانلود SMS & Call Bomber 3.0
+      # 3. دانلود SMS & Call Bomber 3.0 در پوشه SMS-Bomber
       - name: Checkout SMS-Bomber
         uses: actions/checkout@v4
         with:
@@ -26,7 +34,7 @@ jobs:
           path: SMS-Bomber
           ref: main
 
-      # 3. دانلود smsbomber (PouyaFakham)
+      # 4. دانلود smsbomber (PouyaFakham) در پوشه Sms-Bobmer
       - name: Checkout Sms-Bobmer
         uses: actions/checkout@v4
         with:
@@ -34,12 +42,18 @@ jobs:
           path: Sms-Bobmer
           ref: main
 
-      # 4. نمایش لیست فایل‌ها برای اطمینان
-      - name: Verify Downloaded Folders
+      # 5. حذف پوشه‌های .git داخلی (تا به عنوان ساب‌ماژول شناخته نشوند و فایل‌ها عادی تلقی شوند)
+      - name: Remove nested .git folders
         run: |
-          echo "--- Iran-Bomber ---"
-          ls -la iran-bomber
-          echo "--- SMS-Bomber ---"
-          ls -la SMS-Bomber
-          echo "--- Sms-Bobmer ---"
-          ls -la Sms-Bobmer
+          rm -rf iran-bomber/.git
+          rm -rf SMS-Bomber/.git
+          rm -rf Sms-Bobmer/.git
+
+      # 6. کامیت کردن و پوش کردن فایل‌ها به مخزن
+      - name: Commit and push downloaded tools
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add .
+          git commit -m "Add downloaded bomber tools to repository" || echo "No changes to commit"
+          git push
