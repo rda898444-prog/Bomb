@@ -1,4 +1,4 @@
-name: 10s Test Run with Logs
+name: 10s Test with Release Logs
 
 on:
   workflow_dispatch:
@@ -7,6 +7,10 @@ on:
         description: 'Target Phone Number (e.g., 09123456789)'
         required: true
         type: string
+
+# دادن دسترسی برای ساخت Release و آپلود فایل در آن
+permissions:
+  contents: write
 
 jobs:
   run-bombers:
@@ -35,49 +39,47 @@ jobs:
         if: matrix.type == 'go'
         run: |
           cd ${{ matrix.dir }}
-          echo "Starting Iran-Bomber with default concurrency (-c 100)..."
-          # استفاده از timeout برای محدود کردن زمان اجرا به 10 ثانیه
-          timeout 10s go run sms.go -phone "${{ github.event.inputs.phone_number }}" -c 100 2>&1 | tee iran-bomber.log || true
-          echo "--- Log file contents ---"
-          cat iran-bomber.log
+          echo "Starting Iran-Bomber..."
+          # هدایت خروجی به فایل لاگ در پوشه اصلی
+          timeout 10s go run sms.go -phone "${{ github.event.inputs.phone_number }}" -c 100 > ../iran-bomber.log 2>&1 || true
+          echo "--- Log saved ---"
 
-      # --- اجرای SMS-Bomber (Python) ---
+      # --- راه‌اندازی پایتون ---
       - name: Setup Python
         if: matrix.type == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Install Python Dependencies
-        if: matrix.type == 'python'
-        run: |
-          cd ${{ matrix.dir }}
-          pip install -r requirements.txt
-
+      # --- اجرای SMS-Bomber ---
       - name: Run SMS-Bomber (10s timeout)
         if: matrix.dir == 'SMS-Bomber'
         run: |
           cd ${{ matrix.dir }}
-          echo "Starting SMS-Bomber with default concurrency (-t 5)..."
-          timeout 10s python run.py "${{ github.event.inputs.phone_number }}" -c 100 -t 5 -v 2>&1 | tee sms-bomber.log || true
-          echo "--- Log file contents ---"
-          cat sms-bomber.log
+          # اصلاح مسیر requirements.txt
+          pip install -r sms_bomber/requirements.txt || pip install aiohttp rich customtkinter
+          echo "Starting SMS-Bomber..."
+          timeout 10s python run.py "${{ github.event.inputs.phone_number }}" -c 100 -t 5 -v > ../sms-bomber.log 2>&1 || true
 
-      # --- اجرای Sms-Bobmer (Python) ---
+      # --- اجرای Sms-Bobmer ---
       - name: Run Sms-Bobmer (10s timeout)
         if: matrix.dir == 'Sms-Bobmer'
         run: |
           cd ${{ matrix.dir }}
-          echo "Starting Sms-Bobmer (interactive input for phone)..."
-          # این ابزار تعاملی است، شماره را با echo پاس می‌دهیم
-          timeout 10s bash -c 'echo "${{ github.event.inputs.phone_number }}" | python bomber.py' 2>&1 | tee sms-bobmer.log || true
-          echo "--- Log file contents ---"
-          cat sms-bobmer.log
+          pip install -r requirements.txt
+          echo "Starting Sms-Bobmer..."
+          timeout 10s bash -c 'echo "${{ github.event.inputs.phone_number }}" | python bomber.py' > ../sms-bobmer.log 2>&1 || true
 
-      # --- آپلود فایل لاگ به عنوان Artifact (اختیاری) ---
-      - name: Upload Log Artifact
-        uses: actions/upload-artifact@v4
-        if: always() # حتی اگر اجرا با timeout متوقف شد، لاگ آپلود شود
+      # --- آپلود لاگ‌ها در بخش Releases ---
+      - name: Upload Logs to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: always() # حتی اگر ابزار با تایم‌اوت متوقف شد، لاگ آپلود شود
         with:
-          name: logs-${{ matrix.tool_name }}
-          path: ${{ matrix.dir }}/*.log
+          # ساخت یک تگ منحصر به فرد برای هر بار اجرا
+          tag_name: test-run-${{ github.run_number }}
+          name: "تست اجرای بمبر - ران ${{ github.run_number }}"
+          body: "لاگ‌های تست ۱۰ ثانیه‌ای برای شماره ${{ github.event.inputs.phone_number }}"
+          # آپلود تمام فایل‌های log تولید شده
+          files: "*.log"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
