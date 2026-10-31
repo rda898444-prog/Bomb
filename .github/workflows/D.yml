@@ -1,0 +1,45 @@
+name: Download Bomber Tools
+
+on:
+  workflow_dispatch: # اجرای دستی از تب Actions
+  push:
+    branches: [ main ] # یا هر شاخه‌ای که مد نظر دارید
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. دانلود مخزن Iran-Bomber در پوشه iran-bomber
+      - name: Checkout Iran-Bomber
+        uses: actions/checkout@v4
+        with:
+          repository: M-logique/iran-bomber
+          path: iran-bomber
+          ref: master # شاخه پیش‌فرض این پروژه master است
+
+      # 2. دانلود مخزن SMS & Call Bomber 3.0 در پوشه SMS-Bomber
+      - name: Checkout SMS-Bomber
+        uses: actions/checkout@v4
+        with:
+          repository: Hossein774/SMS-Bomber
+          path: SMS-Bomber
+          ref: main # شاخه پیش‌فرض این پروژه main است
+
+      # 3. دانلود مخزن smsbomber (PouyaFakham) در پوشه Sms-Bobmer
+      - name: Checkout Sms-Bobmer
+        uses: actions/checkout@v4
+        with:
+          repository: PouyaFakham/Sms-Bobmer
+          path: Sms-Bobmer
+          ref: main # شاخه پیش‌فرض این پروژه main است
+
+      # 4. (اختیاری) نمایش لیست فایل‌های دانلود شده برای اطمینان از صحت کار
+      - name: Verify Downloaded Folders
+        run: |
+          echo "--- Iran-Bomber ---"
+          ls -la iran-bomber
+          echo "--- SMS-Bomber ---"
+          ls -la SMS-Bomber
+          echo "--- Sms-Bobmer ---"
+          ls -la Sms-Bobmer
